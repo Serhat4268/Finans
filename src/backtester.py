@@ -22,10 +22,12 @@ class BacktestEngine:
         signal_manager: Optional[SignalManager] = None,
         max_holding_bars: int = 10,
         risk_free_rate: float = 0.05,
+        spot_only: bool = True,
     ):
         self.signal_mgr = signal_manager or SignalManager()
         self.max_holding_bars = max_holding_bars
         self.risk_free_rate = risk_free_rate
+        self.spot_only = spot_only
 
     def run_backtest(
         self,
@@ -69,8 +71,9 @@ class BacktestEngine:
             sig_raw = int(sig_row["signal_raw"]) if "signal_raw" in sig_row else int(sig_row["signal"])
             confidence = float(sig_row.get("confidence", 0.0))
 
-            # Sadece AL (1) veya SAT (-1) sinyallerinde işlem açılır
-            if sig_raw in [1, -1]:
+            # Sadece izin verilen sinyallerde işlem açılır (Spot modunda sadece AL=1)
+            allowed_signals = [1] if self.spot_only else [1, -1]
+            if sig_raw in allowed_signals:
                 entry_price = float(df["Close"].iloc[i])
                 stop_loss = float(sig_row["stop_loss"])
                 take_profit = float(sig_row["take_profit"])

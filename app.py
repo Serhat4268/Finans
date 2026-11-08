@@ -734,21 +734,22 @@ def main():
     # SEKME 2: Backtest & Sermaye Büyümesi
     with tab2:
         st.markdown("### Geriye Dönük Çubuk Bazlı Simülasyon (Backtest)")
-        backtester = BacktestEngine(signal_manager=signal_mgr, max_holding_bars=10)
+        backtester = BacktestEngine(signal_manager=signal_mgr, max_holding_bars=10, spot_only=True)
         
-        with st.spinner("Backtest koşturuluyor..."):
+        with st.spinner("Backtest koşturuluyor (Spot Modeli)..."):
             preds_encoded = bundle["model"].predict(df_features[bundle["feature_names"]])
             preds_raw = pd.Series(preds_encoded).map({0: -1, 1: 0, 2: 1}).values
             
+            # Spot işlem modelinde sadece AL (1) için SL ve TP tanımlanır (Açığa satış/Short yok)
             sl_series = np.where(
                 preds_raw == 1,
                 df_features["Close"] - (df_features["ATR"] * atr_multiplier),
-                np.where(preds_raw == -1, df_features["Close"] + (df_features["ATR"] * atr_multiplier), np.nan)
+                np.nan
             )
             tp_series = np.where(
                 preds_raw == 1,
                 df_features["Close"] + (df_features["ATR"] * atr_multiplier * risk_reward),
-                np.where(preds_raw == -1, df_features["Close"] - (df_features["ATR"] * atr_multiplier * risk_reward), np.nan)
+                np.nan
             )
 
             bt_res = backtester.run_backtest(
@@ -903,11 +904,12 @@ def main():
         # Canlı Takip Tarih & Sermaye Kontrolleri
         col_ctrl1, col_ctrl2 = st.columns([2, 1])
         with col_ctrl1:
-            default_start = datetime(2026, 10, 1).date()
+            min_date = datetime(2026, 11, 1).date()
             live_start_picker = st.date_input(
-                "📅 Takip Başlangıç Tarihi",
-                value=default_start,
-                help="Sermaye hesaplaması ve canlı sinyal takibinin başlayacağı tarih",
+                "📅 Takip Başlangıç Tarihi (Spot Portföy)",
+                value=min_date,
+                min_value=min_date,
+                help="Sermaye takibinin başlayacağı tarih (1 Kasım 2026 öncesine alınamaz)",
             )
             LIVE_START_DATE = str(live_start_picker)
         with col_ctrl2:
@@ -925,14 +927,14 @@ def main():
                         border: 1px solid #30363d; border-radius: 10px;
                         padding: 16px 20px; margin-bottom: 18px;">
                 <span style="font-size: 0.8rem; color: #58a6ff; font-weight: 700; letter-spacing: 0.08em;">
-                    ⚡ CANLI TAKİP VE SERMAYE YÖNETİMİ
+                    ⚡ CANLI SPOT TAKİP VE SERMAYE YÖNETİMİ
                 </span>
                 <h3 style="color: #f0f6fc; margin: 4px 0; font-size: 1.4rem;">
                     {LIVE_START_DATE} — Başlangıç Sermayesi: <span style="color: #26a69a;">${INITIAL_CAPITAL:,.0f}</span>
                 </h3>
                 <span style="color: #8b949e; font-size: 0.85rem;">
-                    Bu tarihten itibaren modelin ürettiği sinyaller gerçek zamanlı izleniyor.
-                    Pozisyon kâr hedefine (TP) veya zarar durdurma (SL) seviyesine ulaştığında kapatılır.
+                    Model yalnızca <b>Spot Alış</b> ve nakit yönetimi yapar (Kaldıraçsız / Short pozisyon açılmaz).
+                    Açık spot pozisyon kâr hedefine (TP) veya zarar durdurma (SL) seviyesine ulaştığında kapatılır.
                 </span>
             </div>
         """, unsafe_allow_html=True)

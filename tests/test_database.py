@@ -35,12 +35,17 @@ class TestSignalManagerAndBacktest(unittest.TestCase):
         self.assertLess(sl_buy, close)
         self.assertGreater(tp_buy, close)
 
-        # SAT Sinyali (Kısa Pozisyon)
-        sl_sell, tp_sell = SignalManager.calculate_trade_levels(-1, close, atr, atr_mult, rr)
+        # SAT Sinyali (Kısa Pozisyon - spot_only=False durumunda)
+        sl_sell, tp_sell = SignalManager.calculate_trade_levels(-1, close, atr, atr_mult, rr, spot_only=False)
         self.assertEqual(sl_sell, 100.0 + (2.0 * 1.5))  # 103.0
         self.assertEqual(tp_sell, 100.0 - (2.0 * 1.5 * 2.0))  # 94.0
         self.assertGreater(sl_sell, close)
         self.assertLess(tp_sell, close)
+
+        # SAT Sinyali (Spot Modunda - Pozisyon Açılmaz)
+        sl_spot_sell, tp_spot_sell = SignalManager.calculate_trade_levels(-1, close, atr, atr_mult, rr, spot_only=True)
+        self.assertIsNone(sl_spot_sell)
+        self.assertIsNone(tp_spot_sell)
 
         # NÖTR Sinyali (Pozisyon Açılmaz)
         sl_hold, tp_hold = SignalManager.calculate_trade_levels(0, close, atr, atr_mult, rr)

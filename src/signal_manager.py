@@ -92,28 +92,24 @@ class SignalManager:
         atr: float,
         atr_multiplier: float = 1.5,
         risk_reward_ratio: float = 2.0,
+        spot_only: bool = True,
     ) -> Tuple[Optional[float], Optional[float]]:
         """
         Dinamik ATR tabanlı Stop-Loss ve Take-Profit (Hedef) seviyelerini hesaplar.
-
-        Parametreler:
-            signal_raw: 1 (Al), -1 (Sat), 0 (Nötr)
-            close: Giriş fiyatı
-            atr: Ortalama Gerçek Aralık (Volatilite)
-            atr_multiplier: Stop mesafesi için ATR katsayısı (varsayılan: 1.5x ATR)
-            risk_reward_ratio: Kâr hedefi katsayısı (varsayılan: 2.0 -> 1:2 R:R oranı)
+        Spot işlem modelinde sadece AL (1) için pozisyon seviyeleri belirlenir;
+        kaldıraçsız spot piyasada SAT veya NÖTR iken yeni pozisyon açılmaz (nakitte beklenir).
         """
-        if signal_raw == 1:  # AL (Uzun Pozisyon)
+        if signal_raw == 1:  # AL (Spot Alış)
             stop_loss = round(close - (atr * atr_multiplier), 4)
             take_profit = round(close + (atr * atr_multiplier * risk_reward_ratio), 4)
             return stop_loss, take_profit
 
-        elif signal_raw == -1:  # SAT (Kısa Pozisyon)
+        elif signal_raw == -1 and not spot_only:  # Kaldıraçlı/Short Açığa Satış
             stop_loss = round(close + (atr * atr_multiplier), 4)
             take_profit = round(close - (atr * atr_multiplier * risk_reward_ratio), 4)
             return stop_loss, take_profit
 
-        return None, None  # NÖTR durumunda pozisyon açılmaz
+        return None, None  # Spot piyasada SAT veya NÖTR durumunda pozisyon açılmaz
 
     def log_signal(
         self,
@@ -165,7 +161,7 @@ class SignalManager:
                     take_profit,
                     supertrend,
                     atr,
-                    status if signal_raw != 0 else "HOLD",
+                    status if (signal_raw == 1 and status == "OPEN") else "HOLD",
                 ),
             )
             conn.commit()
@@ -323,8 +319,8 @@ class SignalManager:
         if open_signals.empty:
             return 0
 
-        # Sadece AL veya SAT sinyallerini işle (HOLD = NOTR)
-        open_signals = open_signals[open_signals["signal"].isin([1, -1])]
+        # Spot modelinde sadece AL (signal=1) pozisyonları izlenir
+        open_signals = open_signals[open_signals["signal"] == 1]
         if open_signals.empty:
             return 0
 
