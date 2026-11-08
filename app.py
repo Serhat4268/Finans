@@ -955,9 +955,9 @@ def main():
             st.info("📭 Henüz bu tarihten itibaren kayıtlı sinyal bulunmuyor. "
                     "Sistem her sayfayı yükleyişte bugünkü sinyali otomatik kaydeder.")
         else:
-            # --- Özet KPI Kartları ---
-            closed_df = live_df[live_df["status"].isin(["HIT_TP", "HIT_SL", "EXPIRED"])]
-            open_df = live_df[live_df["status"] == "OPEN"]
+            # --- Özet KPI Kartları (Yalnızca Spot Alış İşlemleri) ---
+            closed_df = live_df[(live_df["status"].isin(["HIT_TP", "HIT_SL", "EXPIRED"])) & (live_df["signal"] == 1)]
+            open_df = live_df[(live_df["status"] == "OPEN") & (live_df["signal"] == 1)]
             win_trades = (closed_df["pnl_pct"] > 0).sum() if not closed_df.empty else 0
             loss_trades = (closed_df["pnl_pct"] <= 0).sum() if not closed_df.empty else 0
             win_rate = (win_trades / len(closed_df) * 100) if len(closed_df) > 0 else 0.0
